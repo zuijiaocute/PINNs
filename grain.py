@@ -140,7 +140,7 @@ class PhysicsInformedNN():
 
 
         loss = torch.mean((h_pred - h) ** 2) + \
-               torch.mean((h_base_pred - h) ** 2) + \
+               torch.mean((h_base_pred - h2) ** 2) + \
                torch.mean(f_pred ** 2)       + \
                torch.mean(f_base_pred ** 2)
         
