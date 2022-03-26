@@ -35,13 +35,14 @@ class dataPreprocess():
             print("Working on ",i,"/ 730!" )
             txt_name = "body-" + str(j).rjust(4,"0") + ".txt"
             data_path = os.path.join('/Volumes/Extreme SSD/gain_yu',txt_name)
-            df =  pd.read_csv(data_path, sep = ', ')
+            df =  pd.read_csv(data_path, sep = ', ',engine = 'python')
+            df.insert(4, '    time', i)
             df = df.iloc[:,1:]
             data = df.to_numpy()
             data = data.astype(np_type)
 
             output_name = str(i) + '.npy'
-            output_path = os.path.join('/Users/xlj/Desktop/grain_dataset',output_name)
+            output_path = os.path.join('/Volumes/Extreme SSD/grain_dataset',output_name)
 
             np.save(output_path,data)
 
