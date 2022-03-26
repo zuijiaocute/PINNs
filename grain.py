@@ -31,6 +31,8 @@ class Grain_Dataset(Dataset):
     """
     :grain_dataset:  数据集文件夹所在位置，文件夹里包含的文件里面是每个时刻的所有空间点以及它们的温度
     """
+
+    # to do list  对于服务器直接在init中加载好np数据集应该可以提速，可以测试一下
     def __init__(self,grain_dataset):
         super().__init__()
 
