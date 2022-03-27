@@ -33,31 +33,60 @@ class Grain_Dataset(Dataset):
     """
 
     # to do list  对于服务器直接在init中加载好np数据集应该可以提速，可以测试一下
+    # def __init__(self,grain_dataset):
+    #     super().__init__()
+
+    #     #确定文件路径
+    #     self.full_path = []
+    #     for item in os.listdir(grain_dataset):
+    #         self.full_path.append(os.path.join(grain_dataset,item))
+
+    #     #确定中数据集数量
+    #     self.nums_of_files = len(self.full_path)
+    #     self.items_in_one_file = len(np.load(self.full_path[0]))
+    #     self.total_num =  self.nums_of_files * self.items_in_one_file
+
+    # def __getitem__(self, item):
+    #     #item是从0开始的，要对应回去确认每个item所在位置
+    #     item_order = item // self.items_in_one_file
+    #     item_order_in_file = item % self.items_in_one_file
+    #     item_loacate_path = self.full_path[item_order]
+    #     item = np.load(item_loacate_path)[item_order_in_file]
+
+    #     x = torch.tensor(item[0:1],requires_grad = True)
+    #     y = torch.tensor(item[1:2],requires_grad = True)
+    #     z = torch.tensor(item[2:3],requires_grad = True)
+    #     t = torch.tensor(item[3:4], requires_grad = True)
+    #     h = torch.tensor(item[4:], requires_grad = True)
+
+    #     return x, y, z, t, h
+
     def __init__(self,grain_dataset):
         super().__init__()
 
         #确定文件路径
-        self.full_path = []
+        self.full_npy = []
         for item in os.listdir(grain_dataset):
-            self.full_path.append(os.path.join(grain_dataset,item))
+            item_path = os.path.join(grain_dataset,item)
+            self.full_npy.append(np.load(item_path))
 
         #确定中数据集数量
-        self.nums_of_files = len(self.full_path)
-        self.items_in_one_file = len(np.load(self.full_path[0]))
+        self.nums_of_files = len(self.full_npy)
+        self.items_in_one_file = len(self.full_npy[0])
         self.total_num =  self.nums_of_files * self.items_in_one_file
-        
+
     def __getitem__(self, item):
         #item是从0开始的，要对应回去确认每个item所在位置
         item_order = item // self.items_in_one_file
         item_order_in_file = item % self.items_in_one_file
-        item_loacate_path = self.full_path[item_order]
-        item = np.load(item_loacate_path)[item_order_in_file]
+        item_loacate_path = self.full_npy[item_order]
+        item = item_loacate_path[item_order_in_file]
 
         x = torch.tensor(item[0:1],requires_grad = True)
         y = torch.tensor(item[1:2],requires_grad = True)
         z = torch.tensor(item[2:3],requires_grad = True)
         t = torch.tensor(item[3:4], requires_grad = True)
-        h = torch.tensor(item[4:], requires_grad = True)
+        h = torch.tensor(item[4:5] - 273, requires_grad = True)
 
         return x, y, z, t, h
   
@@ -103,11 +132,10 @@ class PhysicsInformedNN():
         self.dnn = DNN(layers).to(device)
         
         # optimizers: using the same settings        
-        self.optimizer_Adam = torch.optim.Adam(self.dnn.parameters(),lr = 1e-3)
-        self.scheculer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer_Adam, mode='max', factor=0.5, patience=3)
+        self.optimizer_Adam = torch.optim.Adam(self.dnn.parameters(),lr = 1e-3, betas = (0.9,0.999),eps = 1e-8)
+        self.scheculer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer_Adam, mode='min', factor=0.5, patience=5)
         self.iter = 0
     
-        
     def net_h(self, x,y,z,t): 
         X = torch.cat([x,y,z,t], dim=1) 
         h = self.dnn(X)
@@ -146,7 +174,7 @@ class PhysicsInformedNN():
         
         # Backward and optimize
         self.optimizer_Adam.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         self.optimizer_Adam.step()
         self.scheculer.step(loss)
 
@@ -168,19 +196,19 @@ if __name__ == '__main__':
     random_choice(888)
     device = is_cuda()
 
-    grain_train_dataset = "/Volumes/Extreme SSD/train_grain_dataset"
-    grain_base_train_dataset = "/Volumes/Extreme SSD/train_base_grain_dataset"
-    grain_test_dataset  = "/Volumes/Extreme SSD/test_grain_dataset"
+    grain_train_dataset = "/data/xlj/Datasets/train_grain_dataset"
+    grain_base_train_dataset = "/data/xlj/Datasets/train_base_grain_dataset"
+    grain_test_dataset  = "/data/xlj/Datasets/test_grain_dataset"
     epochs_num = 100
     
     train_set = Grain_Dataset(grain_train_dataset)
-    train_loader = DataLoader(dataset=train_set, batch_size = 1024 ,shuffle=True,pin_memory=False)
+    train_loader = DataLoader(dataset=train_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
 
     train_base_set = Grain_Dataset(grain_base_train_dataset)
-    train_base_loader = DataLoader(dataset=train_base_set, batch_size = 1024 ,shuffle=True,pin_memory=False)
+    train_base_loader = DataLoader(dataset=train_base_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
 
     test_set = Grain_Dataset(grain_test_dataset)
-    test_loader = DataLoader(dataset=test_set, batch_size = 1024 ,shuffle=True,pin_memory=False)
+    test_loader = DataLoader(dataset=test_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
     
     model = PhysicsInformedNN(device)
 
@@ -192,6 +220,7 @@ if __name__ == '__main__':
     train_base_loader = cycle(train_base_loader)
 
     #train
+    best_loss_Adam = 999999
     for epoch in range(epochs_num):
         for item,inputs in enumerate(train_loader):
             x,  y,  z,  t , h = inputs
@@ -201,3 +230,6 @@ if __name__ == '__main__':
             t0 = time.time()
             loss = model.train_Adam(x,y,z,t,h,x2,y2,z2,t2,h2)
             print('[Epoch %d,It: %d] Loss: %.5f,Time: %.3f'% (epoch+1,item+1,loss.item(),time.time()-t0))
+            if(item % 100 == 0 and loss < best_loss_Adam):
+                best_loss_Adam = loss
+                torch.save(model.dnn.state_dict(),'./epoch%d_it%d.pth'%(epoch,item))
