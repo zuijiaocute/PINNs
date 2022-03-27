@@ -132,7 +132,7 @@ class PhysicsInformedNN():
         self.dnn = DNN(layers).to(device)
         
         # optimizers: using the same settings        
-        self.optimizer_Adam = torch.optim.Adam(self.dnn.parameters(),lr = 1e-3, betas = (0.9,0.999),eps = 1e-8)
+        self.optimizer_Adam = torch.optim.Adam(self.dnn.parameters(),lr = 1e-2, betas = (0.9,0.999),eps = 1e-8)
         self.scheculer = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer_Adam, mode='min', factor=0.5, patience=5)
         self.iter = 0
     
@@ -202,10 +202,10 @@ if __name__ == '__main__':
     epochs_num = 100
     
     train_set = Grain_Dataset(grain_train_dataset)
-    train_loader = DataLoader(dataset=train_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
+    train_loader = DataLoader(dataset=train_set, batch_size = 16 ,shuffle=True,pin_memory=False)
 
     train_base_set = Grain_Dataset(grain_base_train_dataset)
-    train_base_loader = DataLoader(dataset=train_base_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
+    train_base_loader = DataLoader(dataset=train_base_set, batch_size = 163 ,shuffle=True,pin_memory=False)
 
     test_set = Grain_Dataset(grain_test_dataset)
     test_loader = DataLoader(dataset=test_set, batch_size = 16384 ,shuffle=True,pin_memory=False)
@@ -232,4 +232,4 @@ if __name__ == '__main__':
             print('[Epoch %d,It: %d] Loss: %.5f,Time: %.3f'% (epoch+1,item+1,loss.item(),time.time()-t0))
             if(item % 100 == 0 and loss < best_loss_Adam):
                 best_loss_Adam = loss
-                torch.save(model.dnn.state_dict(),'./epoch%d_it%d.pth'%(epoch,item))
+                torch.save(model.dnn.state_dict(),'./best_saves/epoch%d_it%d.pth'%(epoch,item))

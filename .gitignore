@@ -817,3 +817,4 @@ README.md
 LICENSE
 .ipynb_checkpoints/read_txt-checkpoint.ipynb
 best_saves
+epoch0_it0.pth
